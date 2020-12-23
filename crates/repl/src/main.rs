@@ -1,6 +1,7 @@
 use discord_interactions::{
     reply_with, validate_discord_signature, DiscordEvent, EventType, InteractionResponseType,
 };
+use ed25519_dalek::PublicKey;
 use http::StatusCode;
 use lazy_static::lazy_static;
 use netlify_lambda_http::{
@@ -9,14 +10,14 @@ use netlify_lambda_http::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sodiumoxide::crypto::sign;
+// use sodiumoxide::crypto::sign;
 use std::env;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 lazy_static! {
-    static ref PUB_KEY: sign::PublicKey =
-        sign::PublicKey::from_slice(env::var("DISCORD_PUBLIC_KEY").unwrap().as_bytes()).unwrap();
+    static ref PUB_KEY: PublicKey =
+        PublicKey::from_bytes(env::var("DISCORD_PUBLIC_KEY").unwrap().as_bytes()).unwrap();
 }
 
 #[lambda(http)]

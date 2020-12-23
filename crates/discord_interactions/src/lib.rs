@@ -5,7 +5,8 @@ use netlify_lambda_http::Body;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use sodiumoxide::crypto::sign;
+// use sodiumoxide::crypto::sign;
+use ed25519_dalek::{PublicKey, Signature, Verifier};
 
 /// Verify the discord signature using your application's publickey,
 /// the `X-Signature-Ed25519` and `X-Signature-Timestamp` headers,
@@ -14,15 +15,14 @@ use sodiumoxide::crypto::sign;
 /// This is required because discord will send you a ping when
 /// you set up your webhook URL, as well as random invalid input
 /// periodically that has to be rejected.
-pub fn validate_discord_signature(
-    headers: &HeaderMap,
-    body: &Body,
-    pub_key: &sign::PublicKey,
-) -> bool {
-    let sig_ed25519 = headers
-        .get("X-Signature-Ed25519")
-        .map(|sig| sign::Signature::from_slice(sig.as_bytes()))
-        .flatten();
+pub fn validate_discord_signature(headers: &HeaderMap, body: &Body, pub_key: &PublicKey) -> bool {
+    let mut sig_arr: [u8; 64] = [0; 64];
+    let sig_ed25519 = headers.get("X-Signature-Ed25519").map(|sig| {
+        for (i, byte) in sig.as_bytes().into_iter().enumerate() {
+            sig_arr[i] = *byte;
+        }
+        Signature::new(sig_arr)
+    });
     let sig_timestamp = headers.get("X-Signature-Timestamp");
 
     if let (Body::Text(body), Some(timestamp), Some(sig_bytes)) = (body, sig_timestamp, sig_ed25519)
@@ -34,7 +34,7 @@ pub fn validate_discord_signature(
             .cloned()
             .collect::<Vec<u8>>();
 
-        sign::verify_detached(&sig_bytes, &content.as_slice(), pub_key)
+        pub_key.verify(&content.as_slice(), &sig_bytes).is_ok()
     } else {
         false
     }
