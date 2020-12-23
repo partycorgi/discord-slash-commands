@@ -5,7 +5,8 @@ CRATES = $(dir $(wildcard ./crates/*/))
 help: ## Show this help.
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-build:
+build: ## build on ci
+	sudo apt update && sudo apt install musl-dev musl-tools
 	@echo $(CRATES)
 	for crate in $(CRATES) ; do \
 		cargo install --path $$crate --root bins --target x86_64-unknown-linux-musl ;\
