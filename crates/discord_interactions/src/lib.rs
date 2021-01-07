@@ -1,7 +1,6 @@
 use http::HeaderMap;
 // use lazy_static::lazy_static;
-use netlify_lambda_http::Body;
-
+use aws_lambda_events::encodings::Body;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_repr::{Deserialize_repr, Serialize_repr};

@@ -1,3 +1,4 @@
+use aws_lambda_events::encodings::Body;
 use discord_interactions::{
     reply_with, validate_discord_signature, DiscordEvent, EventType, InteractionResponseType,
 };
@@ -6,7 +7,7 @@ use http::StatusCode;
 use lazy_static::lazy_static;
 use netlify_lambda_http::{
     lambda::{lambda, Context},
-    Body, IntoResponse, Request, Response,
+    IntoResponse, Request, Response,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -17,7 +18,8 @@ type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 lazy_static! {
     static ref PUB_KEY: PublicKey =
-        PublicKey::from_bytes(env::var("DISCORD_PUBLIC_KEY").unwrap().as_bytes()).unwrap();
+        PublicKey::from_bytes(&hex::decode(env::var("DISCORD_PUBLIC_KEY").unwrap()).unwrap())
+            .unwrap();
 }
 
 #[lambda(http)]
