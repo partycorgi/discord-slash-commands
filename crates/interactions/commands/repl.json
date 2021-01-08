@@ -1,0 +1,12 @@
+{
+  "name": "role",
+  "description": "Request a role, some roles are self-assignable.",
+  "options": [
+    {
+      "name": "i-want-to-be-a",
+      "description": "Choose the role you want.",
+      "type": 8,
+      "required": true
+    }
+  ]
+}

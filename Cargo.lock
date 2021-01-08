@@ -178,6 +178,7 @@ version = "0.1.0"
 dependencies = [
  "aws_lambda_events",
  "ed25519-dalek",
+ "hex",
  "http",
  "netlify_lambda_http 0.1.2 (git+https://github.com/netlify/aws-lambda-rust-runtime?branch=main)",
  "serde",
@@ -521,6 +522,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61124eeebbd69b8190558df225adf7e4caafce0d743919e5d6b19652314ec5ec"
 dependencies = [
  "cfg-if 1.0.0",
+]
+
+[[package]]
+name = "interactions"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "aws_lambda_events",
+ "discord_interactions",
+ "ed25519-dalek",
+ "hex",
+ "http",
+ "lazy_static",
+ "netlify_lambda_http 0.1.2 (git+https://github.com/netlify/aws-lambda-rust-runtime/?branch=event_types)",
+ "serde",
+ "serde_json",
+ "tokio 1.0.1",
 ]
 
 [[package]]
@@ -1007,23 +1025,6 @@ name = "redox_syscall"
 version = "0.1.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41cc0f7e4d5d4544e8861606a285bb08d3e70712ccc7d2b84d7c0ccfaf4b05ce"
-
-[[package]]
-name = "repl"
-version = "0.1.0"
-dependencies = [
- "arrayvec",
- "aws_lambda_events",
- "discord_interactions",
- "ed25519-dalek",
- "hex",
- "http",
- "lazy_static",
- "netlify_lambda_http 0.1.2 (git+https://github.com/netlify/aws-lambda-rust-runtime/?branch=event_types)",
- "serde",
- "serde_json",
- "tokio 1.0.1",
-]
 
 [[package]]
 name = "ryu"

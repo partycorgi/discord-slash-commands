@@ -1,5 +1,5 @@
 [package]
-name = "repl"
+name = "interactions"
 version = "0.1.0"
 authors = ["Christopher Biscardi <chris@christopherbiscardi.com>"]
 edition = "2018"

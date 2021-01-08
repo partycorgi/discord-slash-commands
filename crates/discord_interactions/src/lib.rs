@@ -17,8 +17,10 @@ use ed25519_dalek::{PublicKey, Signature, Verifier};
 pub fn validate_discord_signature(headers: &HeaderMap, body: &Body, pub_key: &PublicKey) -> bool {
     let mut sig_arr: [u8; 64] = [0; 64];
     let sig_ed25519 = headers.get("X-Signature-Ed25519").map(|sig| {
-        for (i, byte) in sig.as_bytes().into_iter().enumerate() {
-            sig_arr[i] = *byte;
+        let s = hex::decode(sig).expect("decoded signature");
+        dbg!(&s.len());
+        for (i, byte) in s.into_iter().enumerate() {
+            sig_arr[i] = byte;
         }
         Signature::new(sig_arr)
     });
@@ -46,11 +48,11 @@ pub struct DiscordEvent<T> {
     #[serde(rename = "type")]
     pub event_type: EventType,
     pub data: Option<T>,
-    pub guild_id: Snowflake,
-    pub channel_id: Snowflake,
-    pub member: GuildMember,
+    pub guild_id: Option<Snowflake>,
+    pub channel_id: Option<Snowflake>,
+    pub member: Option<GuildMember>,
     pub token: String,
-    // version: usize,
+    pub version: usize,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, PartialEq, Eq, Debug)]
@@ -73,6 +75,7 @@ pub struct ApplicationCommandInteractionData(serde_json::Value);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct InteractionResponse {
+    #[serde(rename = "type")]
     ir_type: InteractionResponseType,
     data: Option<InteractionApplicationCommandCallbackData>,
 }

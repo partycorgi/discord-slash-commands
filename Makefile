@@ -16,7 +16,7 @@ build: ## build on ci
 create-guild-command:  ## Create a guild-scoped command. Guild commands update instantly and should be used for testing
 	@curl -XPOST \
 	  -H "Authorization: Bot $DISCORD_BOT_TOKEN" \
-	  -d @./crates/repl/options.json \
+	  -d @./crates/interactions/commands/repl.json \
 	  https://discord.com/api/v8/applications/714618235458289804/guilds/601625579166367755/commands 
 	# For authorization, you can use either your bot token 
 	# headers = {
