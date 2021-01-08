@@ -1,6 +1,7 @@
 use http::HeaderMap;
 // use lazy_static::lazy_static;
 use aws_lambda_events::encodings::Body;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -42,7 +43,7 @@ pub fn validate_discord_signature(headers: &HeaderMap, body: &Body, pub_key: &Pu
 }
 
 // snowflake
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct DiscordEvent<T> {
     #[serde(rename = "type")]
@@ -62,8 +63,27 @@ pub enum EventType {
     ApplicationCommand = 2,
 }
 type Snowflake = String;
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
-pub struct GuildMember {}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct GuildMember {
+    pub deaf: bool,
+    pub guild_id: Snowflake,
+    pub joined_at: Option<DateTime<Utc>>,
+    pub mute: bool,
+    pub nick: Option<String>,
+    pub roles: Vec<String>,
+    /// Attached User struct.
+    pub user: User,
+}
+/// Information about a user.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct User {
+    pub id: Snowflake,
+    pub avatar: Option<String>,
+    #[serde(default)]
+    pub bot: bool,
+    pub discriminator: u16,
+    pub username: String,
+}
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct ApplicationCommandInteractionData(serde_json::Value);
 
@@ -150,26 +170,11 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            parsed,
-            DiscordEvent {
-                event_type: EventType::ApplicationCommand,
-                data: serde_json::from_str(
-                    r#"{
-                    "options": [{
-                        "name": "cardname",
-                        "value": "The Gitrog Monster"
-                    }],
-                    "name": "cardsearch",
-                    "id": "771825006014889984"
-                }"#
-                )
-                .ok(),
-                guild_id: "290926798626357999".to_string(),
-                channel_id: "645027906669510667".to_string(),
-                member: GuildMember {},
-                token: "A_UNIQUE_TOKEN".to_string(),
-                // version: 1,
-            }
+            match parsed {
+                DiscordEvent { .. } => true,
+                _ => false,
+            },
+            true
         );
     }
 }

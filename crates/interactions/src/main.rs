@@ -37,7 +37,7 @@ async fn main(event: Request, _: Context) -> Result<impl IntoResponse, Error> {
     }
 }
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
-#[serde(tag = "name")]
+#[serde(tag = "name", rename_all = "lowercase")]
 enum Event {
     Role {
         id: String,
@@ -49,7 +49,8 @@ enum Event {
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(tag = "name")]
 enum RoleOption {
-    Streamer { value: bool },
+    #[serde(rename = "i-want-to-be-a")]
+    IWantToBeA { value: String },
 }
 
 fn handle(event: Request) -> Response<Body> {
@@ -73,8 +74,23 @@ fn handle(event: Request) -> Response<Body> {
 fn handle_event(event: DiscordEvent<Event>) -> Response<Body> {
     println!("{:?}", event);
     match event.data {
-        Some(Event::Role { id, options }) => reply("new".to_string()),
-        Some(Unknown) => reply("unknown_command".to_string()),
+        Some(Event::Role { id, options }) => {
+            let role_requested = options.iter().find(|value| match value {
+                RoleOption::IWantToBeA { .. } => true,
+            });
+            match (role_requested, event.member) {
+                (
+                    Some(RoleOption::IWantToBeA { value }),
+                    Some(discord_interactions::GuildMember { user, .. }),
+                ) => {
+                    dbg!(user.id);
+                    reply(value.to_owned())
+                }
+                (None, _) => reply("must request a role".to_string()),
+                (_, None) => reply("no member to apply role to".to_string()),
+            }
+        }
+        Some(Event::Unknown) => reply("unknown_command".to_string()),
         None => reply("no data for command".to_string()),
     }
 }

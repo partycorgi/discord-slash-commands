@@ -177,6 +177,7 @@ name = "discord_interactions"
 version = "0.1.0"
 dependencies = [
  "aws_lambda_events",
+ "chrono",
  "ed25519-dalek",
  "hex",
  "http",
