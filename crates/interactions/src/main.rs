@@ -84,6 +84,8 @@ fn handle_event(event: DiscordEvent<Event>) -> Response<Body> {
                     Some(discord_interactions::GuildMember { user, .. }),
                 ) => {
                     dbg!(user.id);
+                    // TODO: set role on user if in safelist to self-assign
+                    // otherwise send role request to mod channel?
                     reply(value.to_owned())
                 }
                 (None, _) => reply("must request a role".to_string()),
