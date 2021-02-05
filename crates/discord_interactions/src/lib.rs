@@ -15,19 +15,30 @@ use ed25519_dalek::{PublicKey, Signature, Verifier};
 /// This is required because discord will send you a ping when
 /// you set up your webhook URL, as well as random invalid input
 /// periodically that has to be rejected.
-pub fn validate_discord_signature(headers: &HeaderMap, body: &Body, pub_key: &PublicKey) -> bool {
+pub fn validate_discord_signature(
+    headers: &HeaderMap,
+    body: &Body,
+    pub_key: &PublicKey,
+) -> bool {
     let mut sig_arr: [u8; 64] = [0; 64];
-    let sig_ed25519 = headers.get("X-Signature-Ed25519").map(|sig| {
-        let s = hex::decode(sig).expect("decoded signature");
-        dbg!(&s.len());
-        for (i, byte) in s.into_iter().enumerate() {
-            sig_arr[i] = byte;
-        }
-        Signature::new(sig_arr)
-    });
-    let sig_timestamp = headers.get("X-Signature-Timestamp");
+    let sig_ed25519 =
+        headers.get("X-Signature-Ed25519").map(|sig| {
+            let s = hex::decode(sig)
+                .expect("decoded signature");
+            dbg!(&s.len());
+            for (i, byte) in s.into_iter().enumerate() {
+                sig_arr[i] = byte;
+            }
+            Signature::new(sig_arr)
+        });
+    let sig_timestamp =
+        headers.get("X-Signature-Timestamp");
 
-    if let (Body::Text(body), Some(timestamp), Some(sig_bytes)) = (body, sig_timestamp, sig_ed25519)
+    if let (
+        Body::Text(body),
+        Some(timestamp),
+        Some(sig_bytes),
+    ) = (body, sig_timestamp, sig_ed25519)
     {
         let content = timestamp
             .as_bytes()
@@ -36,7 +47,9 @@ pub fn validate_discord_signature(headers: &HeaderMap, body: &Body, pub_key: &Pu
             .cloned()
             .collect::<Vec<u8>>();
 
-        pub_key.verify(&content.as_slice(), &sig_bytes).is_ok()
+        pub_key
+            .verify(&content.as_slice(), &sig_bytes)
+            .is_ok()
     } else {
         false
     }
@@ -56,7 +69,9 @@ pub struct DiscordEvent<T> {
     pub version: usize,
 }
 
-#[derive(Serialize_repr, Deserialize_repr, PartialEq, Eq, Debug)]
+#[derive(
+    Serialize_repr, Deserialize_repr, PartialEq, Eq, Debug,
+)]
 #[repr(u8)]
 pub enum EventType {
     Ping = 1,
@@ -66,7 +81,7 @@ type Snowflake = String;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GuildMember {
     pub deaf: bool,
-    pub guild_id: Snowflake,
+    // pub guild_id: Snowflake,
     pub joined_at: Option<DateTime<Utc>>,
     pub mute: bool,
     pub nick: Option<String>,
@@ -81,11 +96,13 @@ pub struct User {
     pub avatar: Option<String>,
     #[serde(default)]
     pub bot: bool,
-    pub discriminator: u16,
+    pub discriminator: String,
     pub username: String,
 }
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
-pub struct ApplicationCommandInteractionData(serde_json::Value);
+pub struct ApplicationCommandInteractionData(
+    serde_json::Value,
+);
 
 // struct ApplicationCommandInteractionDataOption {
 //     name: String,
@@ -99,7 +116,9 @@ pub struct InteractionResponse {
     ir_type: InteractionResponseType,
     data: Option<InteractionApplicationCommandCallbackData>,
 }
-#[derive(Serialize_repr, Deserialize_repr, PartialEq, Eq, Debug)]
+#[derive(
+    Serialize_repr, Deserialize_repr, PartialEq, Eq, Debug,
+)]
 #[repr(u8)]
 pub enum InteractionResponseType {
     Pong = 1,
@@ -109,13 +128,18 @@ pub enum InteractionResponseType {
     ACKWithSource = 5,
 }
 
-pub fn reply_with(ir_type: InteractionResponseType, content: String) -> InteractionResponse {
+pub fn reply_with(
+    ir_type: InteractionResponseType,
+    content: String,
+) -> InteractionResponse {
     InteractionResponse {
         ir_type,
-        data: Some(InteractionApplicationCommandCallbackData {
-            tts: false,
-            content,
-        }),
+        data: Some(
+            InteractionApplicationCommandCallbackData {
+                tts: false,
+                content,
+            },
+        ),
     }
 }
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
