@@ -92,7 +92,6 @@ async fn handle(event: Request) -> Response<Body> {
             reply("failed to parse".to_string())
         }
     };
-    dbg!(&response);
     response
 }
 
@@ -104,7 +103,6 @@ const USER_AGENT: &str = concat!(
 );
 const SAFELIST_ROLES_TO_ASSUME: [&str; 1] =
     ["646518404030922772"];
-// const GUILD_ID: &str = env!("DISCORD_GUILD");
 
 async fn handle_event(
     event: DiscordEvent<Event>,
@@ -126,9 +124,6 @@ async fn handle_event(
                         },
                     ),
                 ) => {
-                    dbg!(&event.guild_id);
-                    dbg!(&user.id);
-
                     // if the user is allowed to self-assign
                     if SAFELIST_ROLES_TO_ASSUME
                         .contains(&value.as_str())
@@ -140,8 +135,6 @@ async fn handle_event(
                         .header("Authorization", format!("Bot {}", DISCORD_BOT_TOKEN.clone()))
                         .send()
                         .await;
-
-                        dbg!(&res);
 
                         match res {
                             Err(e) => reply(format!(
