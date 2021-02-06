@@ -166,6 +166,7 @@ dependencies = [
  "ed25519-dalek",
  "hex",
  "http",
+ "lazy_static",
  "netlify_lambda_http",
  "serde",
  "serde_json",

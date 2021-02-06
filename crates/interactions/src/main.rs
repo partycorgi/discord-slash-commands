@@ -1,31 +1,29 @@
 use aws_lambda_events::encodings::Body;
 use discord_interactions::{
-    reply_with, validate_discord_signature, DiscordEvent,
-    EventType, InteractionResponseType,
+    handle_slash_command, reply, DiscordEvent,
 };
-use ed25519_dalek::PublicKey;
-use http::StatusCode;
+
 use lazy_static::lazy_static;
 use netlify_lambda_http::{
     lambda::{lambda, Context},
     IntoResponse, Request, Response,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-// use sodiumoxide::crypto::sign;
 use std::env;
 
 type Error =
     Box<dyn std::error::Error + Send + Sync + 'static>;
 
+const DISCORD_API: &str = "https://discord.com/api/v8";
+const USER_AGENT: &str = concat!(
+	"DiscordBot (https://github.com/partycorgi/discord-slash-commands, ",
+	env!("CARGO_PKG_VERSION"),
+	")"
+);
+const SAFELIST_ROLES_TO_ASSUME: [&str; 1] =
+    ["646518404030922772"];
+
 lazy_static! {
-    static ref PUB_KEY: PublicKey = PublicKey::from_bytes(
-        &hex::decode(
-            env::var("DISCORD_PUBLIC_KEY").unwrap()
-        )
-        .unwrap()
-    )
-    .unwrap();
     static ref DISCORD_BOT_TOKEN: String =
         env::var("DISCORD_BOT_TOKEN")
             .expect("Expected a DISCORD_BOT_TOKEN");
@@ -37,26 +35,7 @@ async fn main(
     event: Request,
     _: Context,
 ) -> Result<impl IntoResponse, Error> {
-    if validate_discord_signature(
-        event.headers(),
-        event.body(),
-        &PUB_KEY,
-    ) {
-        Ok(handle(event).await)
-    } else {
-        Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .body(Body::Text(
-                json!({
-                    "error":
-                        format!(
-                            "failed to verify the thing!"
-                        )
-                })
-                .to_string(),
-            ))
-            .map_err(|_e| panic!("whatever"))
-    }
+    handle_slash_command(&event, handle_event).await
 }
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(tag = "name", rename_all = "lowercase")]
@@ -74,35 +53,6 @@ enum RoleOption {
     #[serde(rename = "i-want-to-be-a")]
     IWantToBeA { value: String },
 }
-
-async fn handle(event: Request) -> Response<Body> {
-    dbg!(event.body());
-    let parsed: Result<DiscordEvent<Event>, _> =
-        serde_json::from_slice(event.body());
-    let response = match parsed {
-        Ok(event) => match event.event_type {
-            EventType::Ping => pong(),
-            EventType::ApplicationCommand => {
-                handle_event(event).await
-            }
-            _ => panic!("unhandled"),
-        },
-        Err(e) => {
-            println!("{:?}", e);
-            reply("failed to parse".to_string())
-        }
-    };
-    response
-}
-
-const DISCORD_API: &str = "https://discord.com/api/v8";
-const USER_AGENT: &str = concat!(
-	"DiscordBot (https://github.com/partycorgi/discord-slash-commands, ",
-	env!("CARGO_PKG_VERSION"),
-	")"
-);
-const SAFELIST_ROLES_TO_ASSUME: [&str; 1] =
-    ["646518404030922772"];
 
 async fn handle_event(
     event: DiscordEvent<Event>,
@@ -171,29 +121,4 @@ async fn handle_event(
         }
         None => reply("no data for command".to_string()),
     }
-}
-
-// panics
-fn reply(content: String) -> Response<Body> {
-    Response::builder()
-        .body(Body::Text(
-            serde_json::to_string(&reply_with(
-                InteractionResponseType::ChannelMessageWithSource,
-                content,
-            ))
-            .expect("expected valid json response"),
-        ))
-        .expect("body to have not failed")
-}
-
-fn pong() -> Response<Body> {
-    Response::builder()
-        .body(Body::Text(
-            serde_json::to_string(&reply_with(
-                InteractionResponseType::Pong,
-                "pong".to_string(),
-            ))
-            .expect("expected valid json response"),
-        ))
-        .expect("body to have not failed")
 }
