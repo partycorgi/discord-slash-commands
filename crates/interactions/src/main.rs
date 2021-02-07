@@ -57,7 +57,7 @@ enum RoleOption {
 
 async fn handle_event(
     event: DiscordEvent<Event>,
-) -> Response<Body> {
+) -> InteractionResponse {
     println!("{:?}", event);
     match event.data {
         Some(Event::Role { id, options }) => {
@@ -108,18 +108,13 @@ async fn handle_event(
                         reply("Role wasn't in the safelist for self-assignment.")
                     }
                 }
-                (None, _) => {
-                    reply("must request a role")
+                (None, _) => reply("must request a role"),
+                (_, None) => {
+                    reply("no member to apply role to")
                 }
-                (_, None) => reply(
-                    "no member to apply role to"
-                        ,
-                ),
             }
         }
-        Some(Event::Unknown) => {
-            reply("unknown_command")
-        }
+        Some(Event::Unknown) => reply("unknown_command"),
         None => reply("no data for command"),
-    }.into_response()
+    }
 }

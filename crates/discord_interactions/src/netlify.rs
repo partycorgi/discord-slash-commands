@@ -64,7 +64,7 @@ pub async fn handle_slash_command<
 ) -> Result<Response<Body>, Error>
 where
     Handler: Fn(DiscordEvent<UserEvent>) -> Fut,
-    Fut: std::future::Future<Output = Response<Body>>,
+    Fut: std::future::Future<Output = InteractionResponse>,
 {
     if validate_discord_signature(
         event.headers(),
