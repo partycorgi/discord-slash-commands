@@ -1,6 +1,7 @@
 use aws_lambda_events::encodings::Body;
 use discord_interactions::{
     handle_slash_command, reply, DiscordEvent,
+    InteractionResponse,
 };
 
 use lazy_static::lazy_static;
@@ -87,7 +88,7 @@ async fn handle_event(
                         .await;
 
                         match res {
-                            Err(e) => reply(format!(
+                            Err(e) => reply(&format!(
                                 "failed to set role for {}",
                                 user.username
                             )),
@@ -96,29 +97,29 @@ async fn handle_event(
                                     .status()
                                     .is_success()
                                 {
-                                    reply(format!("{} has accepted a role", user.username).to_string())
+                                    reply(&format!("{} has accepted a role", user.username))
                                 } else {
-                                    reply(format!("Failed with status code {}", response.status()))
+                                    reply(&format!("Failed with status code {}", response.status()))
                                 }
                             }
                         }
                     } else {
                         // otherwise send role request to mod channel?
-                        reply("Role wasn't in the safelist for self-assignment.".to_string())
+                        reply("Role wasn't in the safelist for self-assignment.")
                     }
                 }
                 (None, _) => {
-                    reply("must request a role".to_string())
+                    reply("must request a role")
                 }
                 (_, None) => reply(
                     "no member to apply role to"
-                        .to_string(),
+                        ,
                 ),
             }
         }
         Some(Event::Unknown) => {
-            reply("unknown_command".to_string())
+            reply("unknown_command")
         }
-        None => reply("no data for command".to_string()),
-    }
+        None => reply("no data for command"),
+    }.into_response()
 }

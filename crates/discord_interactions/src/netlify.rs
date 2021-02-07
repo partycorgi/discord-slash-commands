@@ -1,12 +1,15 @@
 use crate::discord::{
     reply_with, validate_discord_signature, DiscordEvent,
-    EventType, InteractionResponseType,
+    EventType, InteractionResponse,
+    InteractionResponseType,
 };
 use aws_lambda_events::encodings::Body;
 use ed25519_dalek::PublicKey;
-use http::StatusCode;
+use http::{header::CONTENT_TYPE, StatusCode};
 use lazy_static::lazy_static;
-use netlify_lambda_http::{Request, Response};
+use netlify_lambda_http::{
+    IntoResponse, Request, Response,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::env;
@@ -21,29 +24,32 @@ lazy_static! {
     .unwrap();
 }
 
-// panics
-pub fn reply(content: String) -> Response<Body> {
-    Response::builder()
-        .body(Body::Text(
-            serde_json::to_string(&reply_with(
-                InteractionResponseType::ChannelMessageWithSource,
-                content,
-            ))
-            .expect("expected valid json response"),
-        ))
-        .expect("body to have not failed")
+impl IntoResponse for InteractionResponse {
+    fn into_response(self) -> Response<Body> {
+        Response::builder()
+            .header(CONTENT_TYPE, "application/json")
+            .body(
+                serde_json::to_string(&self)
+                    .expect("unable to serialize serde_json::Value")
+                    .into(),
+            )
+            .expect("unable to build http::Response")
+    }
 }
 
-pub fn pong() -> Response<Body> {
-    Response::builder()
-        .body(Body::Text(
-            serde_json::to_string(&reply_with(
-                InteractionResponseType::Pong,
-                "pong".to_string(),
-            ))
-            .expect("expected valid json response"),
-        ))
-        .expect("body to have not failed")
+// panics
+pub fn reply(content: &str) -> InteractionResponse {
+    reply_with(
+        InteractionResponseType::ChannelMessageWithSource,
+        content.to_string(),
+    )
+}
+
+pub fn pong() -> InteractionResponse {
+    reply_with(
+        InteractionResponseType::Pong,
+        "pong".to_string(),
+    )
 }
 
 pub async fn handle_slash_command<
@@ -70,19 +76,23 @@ where
         let response = match parsed {
             Ok(discord_event) => {
                 match discord_event.event_type {
-                    EventType::Ping => pong(),
+                    EventType::Ping => {
+                        pong().into_response()
+                    }
                     EventType::ApplicationCommand => {
-                        handle(discord_event).await
+                        handle(discord_event)
+                            .await
+                            .into_response()
                     }
                     _ => panic!("unhandled"),
                 }
             }
             Err(e) => {
                 println!("{:?}", e);
-                reply("failed to parse".to_string())
+                reply("failed to parse").into_response()
             }
         };
-        Ok(response)
+        Ok(response.into_response())
     } else {
         Response::builder()
             .status(StatusCode::NOT_FOUND)

@@ -139,6 +139,7 @@ pub fn reply_with(
         ),
     }
 }
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct InteractionApplicationCommandCallbackData {
     tts: bool,
