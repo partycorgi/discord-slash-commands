@@ -10,7 +10,7 @@ use netlify_lambda_http::{
     IntoResponse, Request, Response,
 };
 use serde::{Deserialize, Serialize};
-use std::env;
+use std::{collections::HashMap, env};
 
 type Error =
     Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -28,6 +28,11 @@ lazy_static! {
     static ref DISCORD_BOT_TOKEN: String =
         env::var("DISCORD_BOT_TOKEN")
             .expect("Expected a DISCORD_BOT_TOKEN");
+    static ref ROLE_REVERSE_MAP: HashMap<&'static str, &'static str> = {
+        let mut map = HashMap::new();
+        map.insert("646518404030922772", "Streamer");
+        map
+    };
 }
 
 #[lambda(http)]
@@ -75,37 +80,33 @@ async fn handle_event(
                         },
                     ),
                 ) => {
-                    // if the user is allowed to self-assign
-                    if SAFELIST_ROLES_TO_ASSUME
-                        .contains(&value.as_str())
-                    {
-                        let client = reqwest::Client::new();
-                        let res = client
+                    let client = reqwest::Client::new();
+                    let res = client
                         .put(&format!("{}/guilds/{}/members/{}/roles/{}", DISCORD_API, event.guild_id.expect("expected a guild_id to exist in event"), user.id, value))
                         .header("User-Agent", USER_AGENT)
                         .header("Authorization", format!("Bot {}", DISCORD_BOT_TOKEN.clone()))
                         .send()
                         .await;
 
-                        match res {
-                            Err(e) => reply(&format!(
-                                "failed to set role for {}",
-                                user.username
-                            )),
-                            Ok(response) => {
-                                if response
-                                    .status()
-                                    .is_success()
-                                {
-                                    reply(&format!("{} has accepted a role", user.username))
-                                } else {
-                                    reply(&format!("Failed with status code {}", response.status()))
-                                }
+                    match res {
+                        Err(e) => reply(&format!(
+                            "failed to set role for {}",
+                            user.username
+                        )),
+                        Ok(response) => {
+                            if response
+                                .status()
+                                .is_success()
+                            {
+                                match   ROLE_REVERSE_MAP.get(value.as_str())                              {
+                                       Some(name) =>                                 reply(&format!("{} has accepted the {} role", user.username, name)),
+None =>                                 reply(&format!("{} has accepted a role", user.username))
+
+}
+                            } else {
+                                reply(&format!("Failed with status code {}", response.status()))
                             }
                         }
-                    } else {
-                        // otherwise send role request to mod channel?
-                        reply("Role wasn't in the safelist for self-assignment.")
                     }
                 }
                 (None, _) => reply("must request a role"),
