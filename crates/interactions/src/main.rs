@@ -3,14 +3,19 @@ use discord_interactions::{
     handle_slash_command, reply, DiscordEvent,
     InteractionResponse,
 };
-
-use lazy_static::lazy_static;
-use netlify_lambda_http::{
-    lambda::{lambda, Context},
+use lamedh_http::{
+    lambda::{lambda, run, Context},
     IntoResponse, Request, Response,
 };
+use lazy_static::lazy_static;
+// use tracing_subscriber::prelude::;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env};
+use tracing::{info, instrument};
+use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::registry;
 
 type Error =
     Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -35,14 +40,21 @@ lazy_static! {
     };
 }
 
-#[lambda(http)]
+// #[lambda(http)]
 #[tokio::main]
-async fn main(
+async fn main() -> Result<(), Error> {
+    setup_tracing();
+    run(lamedh_http::handler(handler)).await?;
+    Ok(())
+}
+
+async fn handler(
     event: Request,
     _: Context,
 ) -> Result<impl IntoResponse, Error> {
     handle_slash_command(&event, handle_event).await
 }
+
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(tag = "name", rename_all = "lowercase")]
 enum Event {
@@ -60,9 +72,11 @@ enum RoleOption {
     IWantToBeA { value: String },
 }
 
+#[tracing::instrument]
 async fn handle_event(
     event: DiscordEvent<Event>,
 ) -> InteractionResponse {
+    info!(test = "thing");
     println!("{:?}", event);
     match event.data {
         Some(Event::Role { id, options }) => {
@@ -118,4 +132,34 @@ None =>                                 reply(&format!("{} has accepted a role",
         Some(Event::Unknown) => reply("unknown_command"),
         None => reply("no data for command"),
     }
+}
+
+fn setup_tracing() {
+    let honeycomb_key = String::from("");
+    let honeycomb_config = libhoney::Config {
+        options: libhoney::client::Options {
+            api_key: honeycomb_key,
+            dataset: "pcn".to_string(),
+            ..libhoney::client::Options::default()
+        },
+        transmission_options:
+            libhoney::transmission::Options::default(),
+    };
+
+    let telemetry_layer =
+        tracing_honeycomb::new_honeycomb_telemetry_layer(
+            "discord_slash_commands",
+            honeycomb_config,
+        );
+
+    // NOTE: the underlying subscriber MUST be the Registry subscriber
+    let subscriber = registry::Registry::default() // provide underlying span data store
+        .with(LevelFilter::INFO) // filter out low-level debug tracing (eg tokio executor)
+        .with(tracing_subscriber::fmt::Layer::default()) // log to stdout
+        .with(telemetry_layer); // publish to honeycomb backend
+
+    // &subscriber.init();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting global default failed");
 }

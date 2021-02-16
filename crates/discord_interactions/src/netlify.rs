@@ -6,10 +6,8 @@ use crate::discord::{
 use aws_lambda_events::encodings::Body;
 use ed25519_dalek::PublicKey;
 use http::{header::CONTENT_TYPE, StatusCode};
+use lamedh_http::{IntoResponse, Request, Response};
 use lazy_static::lazy_static;
-use netlify_lambda_http::{
-    IntoResponse, Request, Response,
-};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::env;
