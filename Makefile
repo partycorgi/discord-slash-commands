@@ -12,6 +12,12 @@ build: ## build on ci
 	done
 	@mkdir -p functions
 	@cp bins/bin/* functions/
+deploy: build
+	netlify deploy --prod
+	curl https://api.honeycomb.io/1/markers/production \
+        -X POST \
+        -H "X-Honeycomb-Team: ${HONEYCOMB_WRITE_KEY}" \
+        -d '{"message":"Deploy", "type":"deploy"}'
 
 create-guild-command:  ## Create a guild-scoped command. Guild commands update instantly and should be used for testing
 	@curl -XPOST \

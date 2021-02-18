@@ -12,10 +12,14 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env};
 use tracing::{info, instrument};
-use tracing_subscriber::filter::LevelFilter;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::prelude::*;
-use tracing_subscriber::registry;
+use tracing_honeycomb::{
+    current_dist_trace_ctx, new_honeycomb_telemetry_layer,
+    register_dist_tracing_root, TraceId,
+};
+use tracing_subscriber::{
+    filter::LevelFilter, layer::SubscriberExt, prelude::*,
+    registry,
+};
 
 type Error =
     Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -48,11 +52,19 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
+#[tracing::instrument]
 async fn handler(
     event: Request,
     _: Context,
 ) -> Result<impl IntoResponse, Error> {
-    handle_slash_command(&event, handle_event).await
+    register_dist_tracing_root(TraceId::generate(), None);
+    let (tid, sid) = current_dist_trace_ctx().unwrap();
+    println!("{} {}", tid, sid);
+    info!(body = "a body");
+    let res =
+        handle_slash_command(&event, handle_event).await;
+    info!(done = "donzo");
+    res
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -76,8 +88,8 @@ enum RoleOption {
 async fn handle_event(
     event: DiscordEvent<Event>,
 ) -> InteractionResponse {
-    info!(test = "thing");
-    println!("{:?}", event);
+    info!(test = "{\"testing\": \"fieldsyting\"}");
+    // println!("{:?}", event);
     match event.data {
         Some(Event::Role { id, options }) => {
             let role_requested =
@@ -135,22 +147,22 @@ None =>                                 reply(&format!("{} has accepted a role",
 }
 
 fn setup_tracing() {
-    let honeycomb_key = String::from("");
+    let honeycomb_key = env::var("HONEYCOMB_WRITE_KEY")
+        .expect("expected HONEYCOMB_WRITE_KEY");
     let honeycomb_config = libhoney::Config {
         options: libhoney::client::Options {
             api_key: honeycomb_key,
-            dataset: "pcn".to_string(),
+            dataset: "production".to_string(),
             ..libhoney::client::Options::default()
         },
         transmission_options:
             libhoney::transmission::Options::default(),
     };
 
-    let telemetry_layer =
-        tracing_honeycomb::new_honeycomb_telemetry_layer(
-            "discord_slash_commands",
-            honeycomb_config,
-        );
+    let telemetry_layer = new_honeycomb_telemetry_layer(
+        "discord_slash_commands",
+        honeycomb_config,
+    );
 
     // NOTE: the underlying subscriber MUST be the Registry subscriber
     let subscriber = registry::Registry::default() // provide underlying span data store
