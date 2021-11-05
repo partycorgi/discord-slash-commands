@@ -8,7 +8,7 @@ help: ## Show this help.
 build: ## build on ci
 	@echo $(CRATES)
 	for crate in $(CRATES) ; do \
-		cargo install --path $$crate --root bins --target x86_64-unknown-linux-musl ;\
+		cargo install --path $$crate --root bins ;\
 	done
 	@mkdir -p functions
 	@cp bins/bin/* functions/
