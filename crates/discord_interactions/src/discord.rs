@@ -6,16 +6,19 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-/// Verify the discord signature using your application's publickey,
-/// the `X-Signature-Ed25519` and `X-Signature-Timestamp` headers,
+/// Verify the discord signature using your
+/// application's publickey,
+/// the `X-Signature-Ed25519` and
+/// `X-Signature-Timestamp` headers,
 /// and the request body.
 ///
-/// This is required because discord will send you a ping when
-/// you set up your webhook URL, as well as random invalid input
-/// periodically that has to be rejected.
+/// This is required because discord will send you
+/// a ping when you set up your webhook URL, as
+/// well as random invalid input periodically that
+/// has to be rejected.
 pub fn validate_discord_signature(
     headers: &HeaderMap,
-    body: &Body,
+    body: &Option<String>,
     pub_key: &PublicKey,
 ) -> bool {
     let mut sig_arr: [u8; 64] = [0; 64];
@@ -31,11 +34,8 @@ pub fn validate_discord_signature(
     let sig_timestamp =
         headers.get("X-Signature-Timestamp");
 
-    if let (
-        Body::Text(body),
-        Some(timestamp),
-        Some(sig_bytes),
-    ) = (body, sig_timestamp, sig_ed25519)
+    if let (Some(body), Some(timestamp), Some(sig_bytes)) =
+        (body, sig_timestamp, sig_ed25519)
     {
         let content = timestamp
             .as_bytes()
@@ -101,8 +101,8 @@ pub struct ApplicationCommandInteractionData(
     serde_json::Value,
 );
 
-// struct ApplicationCommandInteractionDataOption {
-//     name: String,
+// struct ApplicationCommandInteractionDataOption
+// {     name: String,
 //     value: Option,
 //     options: Option,
 // }
@@ -144,8 +144,9 @@ pub fn reply_with(
 pub struct InteractionApplicationCommandCallbackData {
     tts: bool,
     content: String,
-    // embeds: Option<Vec<Embed>>,                   // TODO,
-    // allowed_mentions: Option<Vec<AllowedMention>>, // TODO
+    /* embeds: Option<Vec<Embed>>,                   //
+     * TODO, allowed_mentions:
+     * Option<Vec<AllowedMention>>, // TODO */
 }
 
 #[cfg(test)]

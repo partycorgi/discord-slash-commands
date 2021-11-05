@@ -3,12 +3,16 @@ use crate::discord::{
     EventType, InteractionResponse,
     InteractionResponseType,
 };
-use aws_lambda_events::encodings::Body;
+use aws_lambda_events::{
+    encodings::Body,
+    event::apigw::{
+        ApiGatewayProxyRequest, ApiGatewayProxyResponse,
+    },
+};
 use ed25519_dalek::PublicKey;
-use http::{header::CONTENT_TYPE, StatusCode};
-use lamedh_http::{IntoResponse, Request, Response};
+use http::{header::CONTENT_TYPE, HeaderMap, HeaderValue};
 use lazy_static::lazy_static;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use std::env;
 
@@ -22,16 +26,27 @@ lazy_static! {
     .unwrap();
 }
 
+trait IntoResponse {
+    fn into_response(self) -> ApiGatewayProxyResponse;
+}
 impl IntoResponse for InteractionResponse {
-    fn into_response(self) -> Response<Body> {
-        Response::builder()
-            .header(CONTENT_TYPE, "application/json")
-            .body(
+    fn into_response(self) -> ApiGatewayProxyResponse {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+        ApiGatewayProxyResponse {
+            status_code: 200,
+            headers,
+            multi_value_headers: HeaderMap::new(),
+            body: Some(Body::Text(
                 serde_json::to_string(&self)
-                    .expect("unable to serialize serde_json::Value")
-                    .into(),
-            )
-            .expect("unable to build http::Response")
+                    .unwrap()
+                    .to_string(),
+            )),
+            is_base64_encoded: Some(false),
+        }
     }
 }
 
@@ -57,20 +72,22 @@ pub async fn handle_slash_command<
     Handler,
     Fut,
 >(
-    event: &'a Request,
+    event: &'a ApiGatewayProxyRequest,
     handle: Handler,
-) -> Result<Response<Body>, Error>
+) -> Result<ApiGatewayProxyResponse, Error>
 where
     Handler: Fn(DiscordEvent<UserEvent>) -> Fut,
     Fut: std::future::Future<Output = InteractionResponse>,
 {
     if validate_discord_signature(
-        event.headers(),
-        event.body(),
+        &event.headers,
+        &event.body,
         &PUB_KEY,
     ) {
         let parsed: Result<DiscordEvent<UserEvent>, _> =
-            serde_json::from_slice(event.body());
+            serde_json::from_str(
+                event.body.as_ref().expect("to exist"),
+            );
         let response = match parsed {
             Ok(discord_event) => {
                 match discord_event.event_type {
@@ -90,16 +107,19 @@ where
                 reply("failed to parse").into_response()
             }
         };
-        Ok(response.into_response())
+        Ok(response)
     } else {
-        Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .body(Body::Text(
+        Ok(ApiGatewayProxyResponse {
+            status_code: 404,
+            headers: HeaderMap::new(),
+            multi_value_headers: HeaderMap::new(),
+            body: Some(Body::Text(
                 json!({
                     "error": "failed to verify the thing!"
                 })
                 .to_string(),
-            ))
-            .map_err(|_e| panic!("whatever"))
+            )),
+            is_base64_encoded: Some(false),
+        })
     }
 }

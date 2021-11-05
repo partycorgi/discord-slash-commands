@@ -1,28 +1,16 @@
-use aws_lambda_events::encodings::Body;
+use aws_lambda_events::event::apigw::{
+    ApiGatewayProxyRequest, ApiGatewayProxyResponse,
+};
 use discord_interactions::{
     handle_slash_command, reply, DiscordEvent,
     InteractionResponse,
 };
-use lamedh_http::{
-    lambda::{lambda, run, Context},
-    IntoResponse, Request, Response,
-};
+
+use lambda_runtime::{handler_fn, Context, Error};
 use lazy_static::lazy_static;
-// use tracing_subscriber::prelude::;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env};
-use tracing::{info, instrument};
-use tracing_honeycomb::{
-    current_dist_trace_ctx, new_honeycomb_telemetry_layer,
-    register_dist_tracing_root, TraceId,
-};
-use tracing_subscriber::{
-    filter::LevelFilter, layer::SubscriberExt, prelude::*,
-    registry,
-};
-
-type Error =
-    Box<dyn std::error::Error + Send + Sync + 'static>;
+// use tracing::{info, instrument};
 
 const DISCORD_API: &str = "https://discord.com/api/v8";
 const USER_AGENT: &str = concat!(
@@ -30,8 +18,6 @@ const USER_AGENT: &str = concat!(
 	env!("CARGO_PKG_VERSION"),
 	")"
 );
-const SAFELIST_ROLES_TO_ASSUME: [&str; 1] =
-    ["646518404030922772"];
 
 lazy_static! {
     static ref DISCORD_BOT_TOKEN: String =
@@ -40,30 +26,26 @@ lazy_static! {
     static ref ROLE_REVERSE_MAP: HashMap<&'static str, &'static str> = {
         let mut map = HashMap::new();
         map.insert("646518404030922772", "Streamer");
+        map.insert("906236413694079006", "Fortnite");
         map
     };
 }
 
-// #[lambda(http)]
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    setup_tracing();
-    run(lamedh_http::handler(handler)).await?;
+    tracing_subscriber::fmt::init();
+    let processor = handler_fn(handler);
+    lambda_runtime::run(processor).await?;
     Ok(())
 }
 
 #[tracing::instrument]
 async fn handler(
-    event: Request,
+    event: ApiGatewayProxyRequest,
     _: Context,
-) -> Result<impl IntoResponse, Error> {
-    register_dist_tracing_root(TraceId::generate(), None);
-    let (tid, sid) = current_dist_trace_ctx().unwrap();
-    println!("{} {}", tid, sid);
-    info!(body = "a body");
+) -> Result<ApiGatewayProxyResponse, Error> {
     let res =
         handle_slash_command(&event, handle_event).await;
-    info!(done = "donzo");
     res
 }
 
@@ -88,10 +70,8 @@ enum RoleOption {
 async fn handle_event(
     event: DiscordEvent<Event>,
 ) -> InteractionResponse {
-    info!(test = "{\"testing\": \"fieldsyting\"}");
-    // println!("{:?}", event);
     match event.data {
-        Some(Event::Role { id, options }) => {
+        Some(Event::Role { id: _, options }) => {
             let role_requested =
                 options.iter().find(|value| match value {
                     RoleOption::IWantToBeA { .. } => true,
@@ -115,7 +95,7 @@ async fn handle_event(
                         .await;
 
                     match res {
-                        Err(e) => reply(&format!(
+                        Err(_e) => reply(&format!(
                             "failed to set role for {}",
                             user.username
                         )),
@@ -144,34 +124,4 @@ None =>                                 reply(&format!("{} has accepted a role",
         Some(Event::Unknown) => reply("unknown_command"),
         None => reply("no data for command"),
     }
-}
-
-fn setup_tracing() {
-    let honeycomb_key = env::var("HONEYCOMB_WRITE_KEY")
-        .expect("expected HONEYCOMB_WRITE_KEY");
-    let honeycomb_config = libhoney::Config {
-        options: libhoney::client::Options {
-            api_key: honeycomb_key,
-            dataset: "production".to_string(),
-            ..libhoney::client::Options::default()
-        },
-        transmission_options:
-            libhoney::transmission::Options::default(),
-    };
-
-    let telemetry_layer = new_honeycomb_telemetry_layer(
-        "discord_slash_commands",
-        honeycomb_config,
-    );
-
-    // NOTE: the underlying subscriber MUST be the Registry subscriber
-    let subscriber = registry::Registry::default() // provide underlying span data store
-        .with(LevelFilter::INFO) // filter out low-level debug tracing (eg tokio executor)
-        .with(tracing_subscriber::fmt::Layer::default()) // log to stdout
-        .with(telemetry_layer); // publish to honeycomb backend
-
-    // &subscriber.init();
-
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting global default failed");
 }
