@@ -7,11 +7,9 @@ help: ## Show this help.
 
 build: ## build on ci
 	@echo $(CRATES)
-	for crate in $(CRATES) ; do \
-		cargo install --path $$crate --root bins ;\
-	done
+	cargo build --release
 	@mkdir -p functions
-	@cp bins/bin/* functions/
+	@cp target/release/interactions functions/
 deploy: build
 	netlify deploy --prod
 	curl https://api.honeycomb.io/1/markers/production \
